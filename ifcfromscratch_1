@@ -1,0 +1,226 @@
+import ifcopenshell
+import ifcopenshell.util
+import ifcopenshell.util.element
+from ifcopenshell.api import run
+import numpy
+import blenderbim.tool.ifcgit
+import bpy
+import logging
+
+from blenderbim.bim import import_ifc
+from blenderbim.bim.ifc import IfcStore
+import blenderbim.tool as tool
+
+import re
+import os
+
+
+
+def delete_collection(blender_collection):
+        for obj in blender_collection.objects:
+            bpy.data.objects.remove(obj, do_unlink=True)
+        bpy.data.collections.remove(blender_collection)
+        
+        
+
+def load_project(path_ifc=""):
+        """Clear and load an ifc project"""
+
+        if path_ifc:
+            IfcStore.purge()
+        else:
+            print("No ifc path in def load project")
+            pass
+        # delete any IfcProject/* collections
+        for collection in bpy.data.collections:
+            if re.match("^IfcProject/", collection.name):
+                delete_collection(collection)
+            else:
+                pass
+        # delete any Ifc* objects not in IfcProject/ heirarchy
+        for obj in bpy.data.objects:
+            if re.match("^Ifc", obj.name):
+                bpy.data.objects.remove(obj, do_unlink=True)
+
+        bpy.data.orphans_purge(do_recursive=True)
+
+"""
+        settings = import_ifc.IfcImportSettings.factory(bpy.context, path_ifc, logging.getLogger("ImportIFC"))
+        settings.should_setup_viewport_camera = False
+        ifc_importer = import_ifc.IfcImporter(settings)
+        ifc_importer.execute()
+        tool.Project.load_pset_templates()
+        tool.Project.load_default_thumbnails()
+        tool.Project.set_default_context()
+        tool.Project.set_default_modeling_dimensions()
+        bpy.ops.object.select_all(action="DESELECT")
+        
+        """
+
+
+#run the """Clear and load an ifc project""" from ifcgit thanks Bruno
+load_project('c:\dev\lukemod.ifc')
+
+#load the ifc file
+model = ifcopenshell.open('c:\dev\lukemod.ifc')
+
+
+#get storey from ifc file
+
+storey = model.by_type("IfcBuildingStorey")[0]
+
+
+
+
+
+#add model contexts
+# If we plan to store 3D geometry in our IFC model, we have to setup
+# a "Model" context.
+model3d = run("context.add_context", model, context_type="Model")
+
+# And/Or, if we plan to store 2D geometry, we need a "Plan" context
+plan = run("context.add_context", model, context_type="Plan")
+
+# Now we setup the subcontexts with each of the geometric "purposes"
+# we plan to store in our model. "Body" is by far the most important
+# and common context, as most IFC models are assumed to be viewable
+# in 3D.
+body = run("context.add_context", model,
+    context_type="Model", context_identifier="Body", target_view="MODEL_VIEW", parent=model3d)
+
+# The 3D Axis subcontext is important if any "axis-based" parametric
+# geometry is going to be created. For example, a beam, or column
+# may be drawn using a single 3D axis line, and for this we need an
+# Axis subcontext.
+run("context.add_context", model,
+    context_type="Model", context_identifier="Axis", target_view="GRAPH_VIEW", parent=model3d)
+
+# It's also important to have a 2D Axis subcontext for things like
+# walls and claddings which can be drawn using a 2D axis line.
+run("context.add_context", model,
+    context_type="Plan", context_identifier="Axis", target_view="GRAPH_VIEW", parent=plan)
+
+# The 3D Box subcontext is useful for clash detection or shape
+# analysis, or even lazy-loading of large models.
+run("context.add_context", model,
+    context_type="Model", context_identifier="Box", target_view="MODEL_VIEW", parent=model3d)
+
+# A 2D annotation subcontext for plan views are important for door
+# swings, window cuts, and symbols for equipment like GPOs, fire
+# extinguishers, and so on.
+run("context.add_context", model,
+    context_type="Plan", context_identifier="Annotation", target_view="PLAN_VIEW", parent=plan)
+
+# You may also create 2D annotation subcontexts for sections and
+# elevation views.
+run("context.add_context", model,
+    context_type="Plan", context_identifier="Annotation", target_view="SECTION_VIEW", parent=plan)
+run("context.add_context", model,
+    context_type="Plan", context_identifier="Annotation", target_view="ELEVATION_VIEW", parent=plan)
+
+
+
+
+
+#------------------------modify file---------------------------
+#add some new walls
+
+
+
+#try to add wall data - work more on this later
+data = {
+    'GlobalId': ifcopenshell.guid.new(),
+    'Name': 'Lukes new wall'
+}
+#model.create_entity('IfcWall', **data)
+
+
+
+
+#-------------------create wall with numpy matrix-------------------
+
+# Let's create a new wall
+wall2 = run("root.create_entity", model, ifc_class="IfcWall")
+
+
+#create location and rotation of new wall----------------
+
+# Create a 4x4 identity matrix. This matrix is at the origin with no rotation.
+matrix = numpy.eye(4)
+
+# Rotate the matix 90 degrees anti-clockwise around the Z axis (i.e. in plan).
+# Anti-clockwise is positive. Clockwise is negative.
+matrix = ifcopenshell.util.placement.rotation(90, "Z") @ matrix
+
+# Set the X, Y, Z coordinates. Notice how we rotate first then translate.
+# This is because the rotation origin is always at 0, 0, 0.
+matrix[:,3][0:3] = (2, 3, 5)
+
+
+# use matrix
+run("geometry.edit_object_placement", model, product=wall2, matrix = matrix)
+
+# Add a new wall-like body geometry, 5 meters long, 3 meters high, and 200mm thick
+representation = run("geometry.add_wall_representation", model, context=body, length=10, height=3, thickness=0.1)
+# Assign our new body geometry back to our wall
+run("geometry.assign_representation", model, product=wall2, representation=representation)
+
+# Place our wall in the ground floor
+run("spatial.assign_container", model, relating_structure=storey, product=wall2)
+
+wall2.Name = 'Lukes new wall 2'
+
+
+
+
+# create a simple utility to make walls easier
+def createwall(wallname, storey, rotation, location, mythickness, mylength, myheight):
+    # Let's create a new wall
+    wallname = run("root.create_entity", model, ifc_class="IfcWall")
+
+
+    #create location and rotation of new wall----------------
+
+    # Create a 4x4 identity matrix. This matrix is at the origin with no rotation.
+    matrix = numpy.eye(4)
+
+    # Rotate the matix 90 degrees anti-clockwise around the Z axis (i.e. in plan).
+    # Anti-clockwise is positive. Clockwise is negative.
+    matrix = ifcopenshell.util.placement.rotation(rotation, "Z") @ matrix
+
+    # Set the X, Y, Z coordinates. Notice how we rotate first then translate.
+    # This is because the rotation origin is always at 0, 0, 0.
+    matrix[:,3][0:3] = location
+
+
+    # use matrix
+    run("geometry.edit_object_placement", model, product=wallname, matrix = matrix)
+
+    # Add a new wall-like body geometry, 5 meters long, 3 meters high, and 200mm thick
+    representation = run("geometry.add_wall_representation", model, context=body, length=mylength, height=myheight, thickness=mythickness)
+    # Assign our new body geometry back to our wall
+    run("geometry.assign_representation", model, product=wallname, representation=representation)
+
+    # Place our wall in the ground floor
+    run("spatial.assign_container", model, relating_structure=storey, product=wallname)
+
+    wallname.Name = str(wallname)
+
+        
+
+createwall('lukes wall', storey, 0, [5,5,1],.3,12,1)
+
+createwall('lukes wall 3', storey, 90, [5,5,1],.3,12,1)
+
+createwall('lukes wall 4', storey, 0, [5,12,1],.3,12,1)
+
+createwall('lukes wall 5', storey, 90, [5,5,1],.3,12,1)
+
+
+
+
+
+
+
+#re write file
+model.write('c:\dev\lukemod.ifc')
