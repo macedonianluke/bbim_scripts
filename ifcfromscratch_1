@@ -14,6 +14,7 @@ import blenderbim.tool as tool
 import re
 import os
 
+#step 1 ------------------ create some useful definitions to use
 
 #need this additional definition from IfcGit
 def delete_collection(blender_collection):
