@@ -62,13 +62,13 @@ def load_project(path_ifc=""):
 
 
 
-#step 1 ------------------ load and reset the ifc file
+#step 2 ------------------ load and reset the ifc file
 load_project(path_ifc = 'c:\dev\lukemod.ifc')
 
 
 
 
-#step 2 ------------------ Create new ifc file
+#step 3 ------------------ Create new ifc file
 
 
 model = ifcopenshell.file()
@@ -107,9 +107,8 @@ run("aggregate.assign_object", model, relating_object=building, product=storey)
 
 
 
-
-#------------------------modify file---------------------------
-#add some new walls
+#step 3 ------------------ Modify the IFC file - have a play
+#add some new walls for example
 
 
 
