@@ -160,7 +160,7 @@ wall2.Name = 'Lukes new wall 2'
 
 
 # create a simple utility to make walls easier
-def createwall(wallname, storey, rotation, location, mythickness, mylength, myheight):
+def createwall(newname, storey, rotation, location, mythickness, mylength, myheight):
     # Let's create a new wall
     wallname = run("root.create_entity", model, ifc_class="IfcWall")
 
@@ -190,19 +190,20 @@ def createwall(wallname, storey, rotation, location, mythickness, mylength, myhe
     # Place our wall in the ground floor
     run("spatial.assign_container", model, relating_structure=storey, product=wallname)
 
-    wallname.Name = str(wallname)
+    wallname.Name = newname
+
 
         
 
 #create some walls using the custom utility
 
-createwall('lukes wall', storey, 0, [5,5,1],.3,12,1)
+createwall('new_wall_1', storey, 0, [5,5,1],.3,12,1)
 
-createwall('lukes wall 3', storey, 90, [5,5,1],.3,12,1)
+createwall('new_wall_2', storey, 90, [5,5,1],.3,12,1)
 
-createwall('lukes wall 4', storey, 0, [5,12,1],.3,12,1)
+createwall('new_wall_3', storey, 0, [5,12,1],.3,12,1)
 
-createwall('lukes wall 5', storey, 90, [5,5,1],.3,12,1)
+createwall('new_wall_4', storey, 90, [5,5,1],.3,12,1)
 
 
 
