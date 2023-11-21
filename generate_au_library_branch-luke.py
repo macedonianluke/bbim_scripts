@@ -1,5 +1,9 @@
 #LUKES - LEARNING ABOUT PYTHON AND IFCOPEN SHELL -  GENERATING LIBRARIES
 
+# note this script is meant to run in a blend file which included manually modeled objects like the demo library generator.
+# you can comment out line 186 - 191 if you want the script to run without none type errors in a blank file.
+
+
 # BlenderBIM Add-on - OpenBIM Blender Add-on
 # Copyright (C) 2020, 2021 Dion Moult <dion@thinkmoult.com>
 #
