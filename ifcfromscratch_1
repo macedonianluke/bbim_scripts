@@ -254,7 +254,7 @@ inner_curve = builder.circle((50.,50.), radius=10.)
 slabprofile = builder.profile(outer_curve, inner_curves=[inner_curve], name="Arbitrary")
 
 
-
+# the add slab profile not working yet.
 #create representation
 slabrepo = run("geometry.add_slab_representation", model, element = mySlab, context = body, profile = slabprofile, thickness = 0.5 )
 
