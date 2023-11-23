@@ -1,22 +1,24 @@
+#base libraries for working with IFC files 
 import ifcopenshell
 import ifcopenshell.util
 import ifcopenshell.util.element
 from ifcopenshell.api import run
+
+#used for wall matrix creation , location, orientation
 import numpy
+
+#used for reloading ifc file dynamically
 import blenderbim.tool.ifcgit
 import bpy
 import logging
-
 from blenderbim.bim import import_ifc
 from blenderbim.bim.ifc import IfcStore
 import blenderbim.tool as tool
-
 import re
 import os
 
-#step 1 ------------------ create some useful definitions to use
 
-#need this additional definition from IfcGit
+#need this additional definition
 def delete_collection(blender_collection):
         for obj in blender_collection.objects:
             bpy.data.objects.remove(obj, do_unlink=True)
@@ -63,13 +65,13 @@ def load_project(path_ifc=""):
 
 
 
-#step 2 ------------------ load and reset the ifc file
+#step 1 ------------------ load the ifc file
 load_project(path_ifc = 'c:\dev\lukemod.ifc')
 
 
 
 
-#step 3 ------------------ Create new ifc file
+#step 2 ------------------ Create new ifc file
 
 
 model = ifcopenshell.file()
@@ -108,8 +110,9 @@ run("aggregate.assign_object", model, relating_object=building, product=storey)
 
 
 
-#step 3 ------------------ Modify the IFC file - have a play
-#add some new walls for example
+
+#------------------------modify file---------------------------
+#add some new walls
 
 
 
@@ -158,7 +161,7 @@ wall2.Name = 'Lukes new wall 2'
 
 
 
-
+# create another wall using a custom definition
 # create a simple utility to make walls easier
 def createwall(newname, storey, rotation, location, mythickness, mylength, myheight):
     # Let's create a new wall
@@ -192,20 +195,37 @@ def createwall(newname, storey, rotation, location, mythickness, mylength, myhei
 
     wallname.Name = newname
 
-
         
 
 #create some walls using the custom utility
 
-createwall('new_wall_1', storey, 0, [5,5,1],.3,12,1)
-
-createwall('new_wall_2', storey, 90, [5,5,1],.3,12,1)
-
-createwall('new_wall_3', storey, 0, [5,12,1],.3,12,1)
-
-createwall('new_wall_4', storey, 90, [5,5,1],.3,12,1)
+createwall('wall 1', storey, 0, [5,5,1],.3,12,1)
 
 
+
+#-------------------------create a wall using creat_2pt_wall-------------------------
+# Let's create a new wall using 2 points
+
+#create root entity
+wallfromPts = run("root.create_entity", model, ifc_class="IfcWall")
+
+#create two points
+pt1 = (1,2,3)
+pt2 = (2,2,3)
+
+element = wallfromPts
+
+newrepresentation = run ("geometry.create_2pt_wall", model, element = element, context = body, p1 = pt1, p2 = pt2, elevation = 0, height = 2.4, thickness = 0.2, is_si = True)
+
+#assign representation to new wall
+run ("geometry.assign_representation",model, product = wallfromPts, representation = newrepresentation)
+
+#assign new wall to spatial container
+run("spatial.assign_container", model, relating_structure = storey, product = wallfromPts)
+ 
+#change its name if you want
+
+wallfromPts.Name = "wallfromPts"
 
 
 
