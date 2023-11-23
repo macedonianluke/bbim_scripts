@@ -4,8 +4,6 @@
         #Here: https://github.com/IfcOpenShell/IfcOpenShell/blob/v0.7.0/src/ifcopenshell-python/ifcopenshell/api/geometry/add_slab_representation.py
 # go here for live testing of ifc script with google collab( thanks to Carlos Villagrasa Silanes):  
         # https://colab.research.google.com/drive/1ieceyxgaG5bY7ODoGxBAMaBlx1yLRRnN?usp=sharing#scrollTo=09YjXEmR6-Ey
-#shell.py - brunopostle/homemaker-addon - Sourcegraph
-        #https://sourcegraph.com/github.com/brunopostle/homemaker-addon@087ca299bc9c1de8fbd3b0b561d3922878f2960e/-/blob/molior/shell.py?L254:33
 
 
 #base libraries for working with IFC files 
@@ -27,6 +25,9 @@ import blenderbim.tool as tool
 import re
 import os
 
+#libraries for shape_builder
+# The shape_builder module depends on mathutils
+from ifcopenshell.util.shape_builder import V
 
 #need this additional definition
 def delete_collection(blender_collection):
@@ -268,9 +269,11 @@ mySlab = run("root.create_entity", model, ifc_class = "IfcSlab")
 
 #create profile for slab
 builder = ifcopenshell.util.shape_builder.ShapeBuilder(model)
+
 outer_curve = builder.polyline([slab_pt1, slab_pt2, slab_pt3, slab_pt4],
     arc_points=[4], closed=True)
-inner_curve = builder.circle((50.,50.), radius=10.)
+#creates a hole inside
+inner_curve = builder.circle((500.,500.), radius=200.)
 slab_profile = builder.profile(outer_curve, inner_curves=[inner_curve], name="Arbitrary")
 
 
@@ -309,6 +312,61 @@ run("spatial.assign_container", model, relating_structure = storey, product = me
 
 #rename it, need to know whre you can put the name earlier - help on this
 mesh1.Name = "mymeshfurn1"
+
+
+
+
+#create a parametric table using Dion's script at copy pasted from below
+# https://blenderbim.org/docs-python/ifcopenshell-python/geometry_creation.html
+
+#maybe need to create a new builder
+builder2 = ifcopenshell.util.shape_builder.ShapeBuilder(model)
+
+#create table entity
+#create a custom mesh ifc furniture
+table1 = run("root.create_entity",model, ifc_class = "IfcFurniture")
+
+# Parameters to define our table
+width = 1200
+depth = 700
+height = 750
+leg_size = 50.0
+thickness = 50.0
+
+# Extrude a rectangle profile for the tabletop
+rectangle = builder2.rectangle(size=V(width, depth))
+tabletop = builder2.extrude(builder.profile(rectangle), thickness, V(0, 0, height - thickness))
+
+# Create a table leg curve, mirror it along two axes, and extrude.
+leg_curve = builder.rectangle(size=V(leg_size, leg_size))
+legs_curves = [leg_curve] + builder2.mirror(
+    leg_curve,
+    mirror_axes=[V(1, 0), V(0, 1), V(1, 1)],
+    mirror_point=V(width / 2, depth / 2),
+    create_copy=True,
+)
+legs_profiles = [builder.profile(leg) for leg in legs_curves]
+legs = [builder2.extrude(leg, height - thickness) for leg in legs_profiles]
+
+# Shift our table such that the object origin is in the center.
+items = [tabletop] + legs
+shift_to_center = V(-width / 2, -depth / 2)
+builder.translate(items, shift_to_center.to_3d())
+
+# Create a body representation
+#already have body context
+#body = ifcopenshell.util.representation.get_context(model, "Model", "Body", "MODEL_VIEW")
+
+table_rep = builder2.get_representation(context=body, items=items)
+
+#assign representation to table1 
+run("geometry.assign_representation",model, product = table1, representation = table_rep)
+
+#add to container
+run("spatial.assign_container", model, relating_structure = storey, product = table1)
+
+#rename it
+table1.Name = "myTable"
 
 
 
