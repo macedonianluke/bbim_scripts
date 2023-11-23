@@ -1,7 +1,9 @@
-
+#---------USEFUL LINKS FOR LEARNING-----------#
 # go here first for learning:   https://blenderbim.org/docs-python/
 # go here for live testing of ifc script with google collab( thanks to Carlos Villagrasa Silanes):  
         # https://colab.research.google.com/drive/1ieceyxgaG5bY7ODoGxBAMaBlx1yLRRnN?usp=sharing#scrollTo=09YjXEmR6-Ey
+#shell.py - brunopostle/homemaker-addon - Sourcegraph
+        #https://sourcegraph.com/github.com/brunopostle/homemaker-addon@087ca299bc9c1de8fbd3b0b561d3922878f2960e/-/blob/molior/shell.py?L254:33
 
 
 #base libraries for working with IFC files 
