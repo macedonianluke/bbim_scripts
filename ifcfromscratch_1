@@ -1,5 +1,7 @@
 #---------USEFUL LINKS FOR LEARNING-----------#
 # go here first for learning:   https://blenderbim.org/docs-python/
+# for Geometry creation you need to look at the raw source code as it is planned to be overhauled. 
+        #Here: https://github.com/IfcOpenShell/IfcOpenShell/blob/v0.7.0/src/ifcopenshell-python/ifcopenshell/api/geometry/add_slab_representation.py
 # go here for live testing of ifc script with google collab( thanks to Carlos Villagrasa Silanes):  
         # https://colab.research.google.com/drive/1ieceyxgaG5bY7ODoGxBAMaBlx1yLRRnN?usp=sharing#scrollTo=09YjXEmR6-Ey
 #shell.py - brunopostle/homemaker-addon - Sourcegraph
