@@ -1,3 +1,9 @@
+
+# go here first for learning:   https://blenderbim.org/docs-python/
+# go here for live testing of ifc script with google collab( thanks to Carlos Villagrasa Silanes):  
+        # https://colab.research.google.com/drive/1ieceyxgaG5bY7ODoGxBAMaBlx1yLRRnN?usp=sharing#scrollTo=09YjXEmR6-Ey
+
+
 #base libraries for working with IFC files 
 import ifcopenshell
 import ifcopenshell.util
@@ -229,7 +235,30 @@ wallfromPts.Name = "wallfromPts"
 
 
 
+#-----------need help to create slab with profile-----------------
 
+#now create a slab with with the api
+
+#create element
+mySlab = run("root.create_entity", model, ifc_class = "IfcSlab")
+
+#create profile for slab
+builder = ifcopenshell.util.shape_builder.ShapeBuilder(model)
+outer_curve = builder.polyline([(0.,0.), (100.,0.), (100.,50.), (51.2,98.7), (18.5,105.3), (0.,77.5)],
+    arc_points=[4], closed=True)
+inner_curve = builder.circle((50.,50.), radius=10.)
+slabprofile = builder.profile(outer_curve, inner_curves=[inner_curve], name="Arbitrary")
+
+
+
+#create representation
+slabrepo = run("geometry.add_slab_representation", model, element = mySlab, context = body, profile = slabprofile, thickness = 0.5 )
+
+#assign representation
+run("geometry.assign_representation", model, product = mySlab, representation = slabrepo)
+
+#assign to container
+run("spatial.assign_container", model, relating_structure = storey, product = mySlab)
 
 
 #re write file
