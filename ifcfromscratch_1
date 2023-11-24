@@ -1,4 +1,11 @@
 #---------USEFUL LINKS FOR LEARNING-----------#
+
+#-----SPECIAL NOTE------------
+#Ensure you have the latest ifcopenshell or blender bim source code 
+# use git and Sigma Dimensions method for updating git and blenderbim addon sequentially
+
+#---important-----core knowledge---------for IFC----------: 
+    #https://technical.buildingsmart.org/standards/
 # go here first for learning:   https://blenderbim.org/docs-python/
 # for Geometry creation you need to look at the raw source code as it is planned to be overhauled. 
         #Here: https://github.com/IfcOpenShell/IfcOpenShell/blob/v0.7.0/src/ifcopenshell-python/ifcopenshell/api/geometry/add_slab_representation.py
@@ -468,7 +475,7 @@ customrect = run("root.create_entity",model, ifc_class = "IfcFurniture")
 
 
 #create the representation for your custom object
-rectangle = model.createIfcRectangleProfileDef(ProfileType="AREA", XDim=500, YDim=250)
+rectangle = model.createIfcRectangleProfileDef(ProfileType="AREA", XDim=500, YDim=300)
 direction = model.createIfcDirection((0., 0., 1.))
 extrusion = model.createIfcExtrudedAreaSolid(SweptArea=rectangle, ExtrudedDirection=direction, Depth=500)
 body = ifcopenshell.util.representation.get_context(model, "Model", "Body", "MODEL_VIEW")
@@ -491,9 +498,101 @@ move(customrect, -1, 0,0,0)
 
 
 
+#-------------------create a type----------------for example airconditioner wall box---------
+#note ----------- ifc types dont need object placements
+element_type = run("root.create_entity", model, ifc_class = "IfcFurnitureType", name = "FURN01")
+
+# Create our element type. Types do not have an object placement.
+#element_type = run("root.create_entity", model, ifc_class="IfcFurnitureType")
+
+#dont forget to change the names of the variables if ifc creation is in same script
+
+#create the representation
+#create the representation for your custom object
+rectangle2 = model.createIfcRectangleProfileDef(ProfileType="AREA", XDim=820, YDim=195)
+direction2 = model.createIfcDirection((0., 0., 1.))
+extrusion2 = model.createIfcExtrudedAreaSolid(SweptArea=rectangle2, ExtrudedDirection=direction2, Depth=306)
+body = ifcopenshell.util.representation.get_context(model, "Model", "Body", "MODEL_VIEW")
+new_rep2 =  model.createIfcShapeRepresentation(
+    ContextOfItems=body, RepresentationIdentifier="Body", RepresentationType="SweptSolid", Items=[extrusion2])
+
+#assign representation to element type
+# Assign our representation to the element type.
+run("geometry.assign_representation", model, product=element_type, representation=new_rep2)
+
+#Note - can rename in same instantiation def below
+
+#-----------------map a type to an element occurance-----------------
+newFurn = run("root.create_entity", model, ifc_class = "IfcFurniture", name = "myFURN01")
+
+#create an object plament for it
+run("geometry.edit_object_placement",model, product = newFurn)
+
+#assign IfcUnitaryEquipment to the IfcUnitaryEquipmentType
+run("type.assign_type",model, related_object = newFurn, relating_type = element_type)
+
+#dont forget assign to container
+run("spatial.assign_container",model, relating_structure = storey, product = newFurn)
+
+
+#move it
+move (newFurn, -9,0,0,0)
 
 
 
+#-------------------material layers sets---------------------
+
+#issue here----------------wall type name not updating
+#create a new wall type
+wall_type = run("root.create_entity", model, ifc_class = "IfcWallType", name="CLT01")
+
+
+#create a material set
+material_set = run("material.add_material_set", model, name = "CRK100-MEM1-CLT90", set_type = "IfcMaterialLayerSet")
+
+#create the materials
+clt = run ("material.add_material",model, name = "CLT90", category = "cross_laminated_timber")
+membrane = run ("material.add_material",model, name = "MEM1", category = "membrane")
+cork = run ("material.add_material",model, name = "CRK100", category = "cork")
+
+#create 3 layers for the new walltype
+#note - python note - here you can see that the layer variable is overidden each new run of api function
+layer = run("material.add_layer", model, layer_set=material_set, material=clt)
+run("material.edit_layer", model, layer=layer, attributes={"LayerThickness": 90})
+layer = run("material.add_layer", model, layer_set=material_set, material=membrane)
+run("material.edit_layer", model, layer=layer, attributes={"LayerThickness": 1})
+layer = run("material.add_layer", model, layer_set=material_set, material=cork)
+run("material.edit_layer", model, layer=layer, attributes={"LayerThickness": 100})
+
+
+#assign material to wall type
+run("material.assign_material", model, product = wall_type, material = material_set)
+
+#create a new wall
+newwall2 = run("root.create_entity", model, ifc_class = "IfcWall", name = "cltwall1")
+
+#create object placement for new wall
+run("geometry.edit_object_placement",model, product = newwall2)
+
+
+
+#assign the type to the wall
+#run("type.assign_type", model, related_object = newwall2, relating_type = walltype)
+ifcopenshell.api.run("type.assign_type", model, related_object=newwall2, relating_type=wall_type)
+
+#now you have explicity create the geometry in the representation to match the layer thickness above
+#ie is manual to make sure correct, unless we create a utility to help out here
+#NOTE - THICKNESS MUST EQUAL LAYERS THICKNESS ABOVES - YOU NEED TO DO THIS MANUALLY
+newwall_rep = run("geometry.add_wall_representation",model, context = body, length = 4, height = 2.4, thickness = 0.191)
+
+#assign representation to new wall
+run("geometry.assign_representation", model, product = newwall2, representation = newwall_rep)
+
+#assign to container
+run("spatial.assign_container", model, relating_structure = storey, product = newwall2)
+
+#move the wall
+move(newwall2, -12, 0,0,90) 
 
 
 #---------------this writes the file above to ifc file
