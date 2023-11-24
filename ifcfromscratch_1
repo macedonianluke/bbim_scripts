@@ -73,7 +73,25 @@ def load_project(path_ifc=""):
         print("load success")
         
 
-        
+#-----------------custom move defintion-------------------
+#lets make an def for easy moving something
+
+def move(element,x,y,z,rot):
+
+    #create a new matrix - for info see:https://blenderbim.org/docs-python/ifcopenshell-python/geometry_creation.html
+    # Create a 4x4 identity matrix. This matrix is at the origin with no rotation.
+    matrix = numpy.eye(4)
+    # Rotate the matix 90 degrees anti-clockwise around the Z axis (i.e. in plan).
+    # Anti-clockwise is positive. Clockwise is negative.
+    matrix = ifcopenshell.util.placement.rotation(rot, "Z") @ matrix
+
+    # Set the X, Y, Z coordinates. Notice how we rotate first then translate.
+    # This is because the rotation origin is always at 0, 0, 0.
+    matrix[:,3][0:3] = (x, y, z)
+
+    # move the object.
+    # `is_si=True` states that we are using SI units instead of project units.
+    run("geometry.edit_object_placement", model, product=element, matrix=matrix, is_si=True)     
 
 
 
@@ -292,9 +310,17 @@ run("spatial.assign_container", model, relating_structure = storey, product = my
 
 
 
-#-------------------custom mesh---------------
+#-------------------create a custom mesh---------------
 #create a custom mesh ifc furniture
 mesh1 = run("root.create_entity",model, ifc_class = "IfcFurniture")
+
+
+
+
+
+
+
+
 
 
 #create a mesh representation then add it to furniture
@@ -313,6 +339,29 @@ run("spatial.assign_container", model, relating_structure = storey, product = me
 
 #rename it, need to know whre you can put the name earlier - help on this
 mesh1.Name = "mymeshfurn1"
+
+
+
+#-----------------let move the mesh out the way-------------------
+#-----------change the object_placement-----------------
+
+#create a new matrix - for info see:https://blenderbim.org/docs-python/ifcopenshell-python/geometry_creation.html
+# Create a 4x4 identity matrix. This matrix is at the origin with no rotation.
+matrix = numpy.eye(4)
+# Rotate the matix 90 degrees anti-clockwise around the Z axis (i.e. in plan).
+# Anti-clockwise is positive. Clockwise is negative.
+matrix = ifcopenshell.util.placement.rotation(90, "Z") @ matrix
+
+# Set the X, Y, Z coordinates. Notice how we rotate first then translate.
+# This is because the rotation origin is always at 0, 0, 0.
+matrix[:,3][0:3] = (-5, 0, 0)
+
+# move the object.
+# `is_si=True` states that we are using SI units instead of project units.
+run("geometry.edit_object_placement", model, product=mesh1, matrix=matrix, is_si=True)
+
+
+
 
 
 
@@ -371,6 +420,13 @@ table1.Name = "myTable"
 
 
 
+#--------------use custom python defintion to move an element---------------
+#lets use our custom, move definition to move the table
+move(table1, -3,0,0,0)
+
+
+
+
 #---------------------create a swept curve--------------------
 #usecase - reo bars, cables, circular railings etc, is a special type of extrusion
 
@@ -398,6 +454,47 @@ run("spatial.assign_container", model, relating_structure = storey, product = sw
 
 #rename 
 sweptbar1.Name = "my_new_railing"
+
+
+
+
+
+#---------------manually create your own class-----------------
+
+
+#dont forget to create root element
+
+customrect = run("root.create_entity",model, ifc_class = "IfcFurniture")
+
+
+#create the representation for your custom object
+rectangle = model.createIfcRectangleProfileDef(ProfileType="AREA", XDim=500, YDim=250)
+direction = model.createIfcDirection((0., 0., 1.))
+extrusion = model.createIfcExtrudedAreaSolid(SweptArea=rectangle, ExtrudedDirection=direction, Depth=500)
+body = ifcopenshell.util.representation.get_context(model, "Model", "Body", "MODEL_VIEW")
+custom_rep = model.createIfcShapeRepresentation(
+    ContextOfItems=body, RepresentationIdentifier="Body", RepresentationType="SweptSolid", Items=[extrusion])
+
+#add representation to the if object element you instantiated above
+run("geometry.assign_representation", model, product = customrect, representation = custom_rep)
+
+#assign the ifc object to a container
+run("spatial.assign_container", model, relating_structure = storey, product = customrect)
+
+#rename it
+customrect.Name = "YourNewRect"
+
+#move it
+move(customrect, -1, 0,0,0)
+
+
+
+
+
+
+
+
+
 
 #---------------this writes the file above to ifc file
 #re write file
