@@ -113,7 +113,8 @@ load_project(path_ifc = 'c:\dev\lukemod.ifc')
 
 model = ifcopenshell.file()
 
-IfcStore.file = model
+#comment below out as was stopping the purging of types
+#IfcStore.file = model
 
 # All projects must have one IFC Project element
 project = run("root.create_entity", model, ifc_class="IfcProject", name="My Project")
@@ -500,7 +501,7 @@ move(customrect, -1, 0,0,0)
 
 #-------------------create a type----------------for example airconditioner wall box---------
 #note ----------- ifc types dont need object placements
-element_type = run("root.create_entity", model, ifc_class = "IfcFurnitureType", name = "FURN01")
+element_type = run("root.create_entity", model, ifc_class = "IfcFurnitureType", name = "FURN02")
 
 # Create our element type. Types do not have an object placement.
 #element_type = run("root.create_entity", model, ifc_class="IfcFurnitureType")
