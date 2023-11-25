@@ -1,0 +1,224 @@
+#---------USEFUL LINKS FOR LEARNING-----------#
+
+#-----SPECIAL NOTE------------
+#Ensure you have the latest ifcopenshell or blender bim source code 
+# use git and Sigma Dimensions method for updating git and blenderbim addon sequentially
+
+#---important-----core knowledge---------for IFC----------: 
+    #https://technical.buildingsmart.org/standards/
+# go here first for learning:   https://blenderbim.org/docs-python/
+# for Geometry creation you need to look at the raw source code as it is planned to be overhauled. 
+        #Here: https://github.com/IfcOpenShell/IfcOpenShell/blob/v0.7.0/src/ifcopenshell-python/ifcopenshell/api/geometry/add_slab_representation.py
+# go here for live testing of ifc script with google collab( thanks to Carlos Villagrasa Silanes):  
+        # https://colab.research.google.com/drive/1ieceyxgaG5bY7ODoGxBAMaBlx1yLRRnN?usp=sharing#scrollTo=09YjXEmR6-Ey
+#important link for finding out what ifc class to use :  https://blenderbim.org/search-ifc-class.html
+
+
+#base libraries for working with IFC files 
+import ifcopenshell
+import ifcopenshell.util
+import ifcopenshell.util.element
+from ifcopenshell.api import run
+
+#used for wall matrix creation , location, orientation
+import numpy
+
+#used for reloading ifc file dynamically
+import blenderbim.tool.ifcgit
+import bpy
+import logging
+from blenderbim.bim import import_ifc
+from blenderbim.bim.ifc import IfcStore
+import blenderbim.tool as tool
+import re
+import os
+
+#libraries for shape_builder
+# The shape_builder module depends on mathutils
+from ifcopenshell.util.shape_builder import V
+
+#need this additional definition
+def delete_collection(blender_collection):
+        for obj in blender_collection.objects:
+            bpy.data.objects.remove(obj, do_unlink=True)
+        bpy.data.collections.remove(blender_collection)
+        
+        
+# bruno's definition from IfcGit Tool in blenderbim-blenderbim-tools-
+def load_project(path_ifc=""):
+        """Clear and load an ifc project"""
+
+        if path_ifc:
+            IfcStore.purge()
+        else:
+            print("No ifc path in def load project")
+            pass
+        # delete any IfcProject/* collections
+        for collection in bpy.data.collections:
+            if re.match("^IfcProject/", collection.name):
+                delete_collection(collection)
+            else:
+                pass
+        # delete any Ifc* objects not in IfcProject/ heirarchy
+        for obj in bpy.data.objects:
+            if re.match("^Ifc", obj.name):
+                bpy.data.objects.remove(obj, do_unlink=True)
+
+        bpy.data.orphans_purge(do_recursive=True)
+
+
+        settings = import_ifc.IfcImportSettings.factory(bpy.context, path_ifc, logging.getLogger("ImportIFC"))
+        settings.should_setup_viewport_camera = False
+        ifc_importer = import_ifc.IfcImporter(settings)
+        ifc_importer.execute()
+        tool.Project.load_pset_templates()
+        tool.Project.load_default_thumbnails()
+        tool.Project.set_default_context()
+        tool.Project.set_default_modeling_dimensions()
+        bpy.ops.object.select_all(action="DESELECT")
+        
+        print("load success")
+        
+
+#-----------------custom move defintion-------------------
+#lets make an def for easy moving something
+
+def move(element,x,y,z,rot):
+
+    #create a new matrix - for info see:https://blenderbim.org/docs-python/ifcopenshell-python/geometry_creation.html
+    # Create a 4x4 identity matrix. This matrix is at the origin with no rotation.
+    matrix = numpy.eye(4)
+    # Rotate the matix 90 degrees anti-clockwise around the Z axis (i.e. in plan).
+    # Anti-clockwise is positive. Clockwise is negative.
+    matrix = ifcopenshell.util.placement.rotation(rot, "Z") @ matrix
+
+    # Set the X, Y, Z coordinates. Notice how we rotate first then translate.
+    # This is because the rotation origin is always at 0, 0, 0.
+    matrix[:,3][0:3] = (x, y, z)
+
+    # move the object.
+    # `is_si=True` states that we are using SI units instead of project units.
+    run("geometry.edit_object_placement", model, product=element, matrix=matrix, is_si=True)     
+
+
+
+#step 1 ------------------ load the ifc file
+load_project(path_ifc = 'c:\dev\lukemod.ifc')
+
+
+
+
+#step 2 ------------------ Create new ifc file
+
+
+model = ifcopenshell.file()
+
+IfcStore.file = model
+
+# All projects must have one IFC Project element
+project = run("root.create_entity", model, ifc_class="IfcProject", name="My Project")
+
+
+
+# Geometry is optional in IFC, but because we want to use geometry in this example, let's define units
+# Assigning without arguments defaults to metric units
+run("unit.assign_unit", model)
+
+# Let's create a modeling geometry context, so we can store 3D geometry (note: IFC supports 2D too!)
+context = run("context.add_context", model, context_type="Model")
+
+# In particular, in this example we want to store the 3D "body" geometry of objects, i.e. the body shape
+body = run("context.add_context", model, context_type="Model",
+    context_identifier="Body", target_view="MODEL_VIEW", parent=context)
+
+# Create a site, building, and storey. Many hierarchies are possible.
+site = run("root.create_entity", model, ifc_class="IfcSite", name="My Site")
+building = run("root.create_entity", model, ifc_class="IfcBuilding", name="Building A")
+storey = run("root.create_entity", model, ifc_class="IfcBuildingStorey", name="Ground Floor")
+
+# Since the site is our top level location, assign it to the project
+# Then place our building on the site, and our storey in the building
+run("aggregate.assign_object", model, relating_object=project, product=site)
+run("aggregate.assign_object", model, relating_object=site, product=building)
+run("aggregate.assign_object", model, relating_object=building, product=storey)
+
+
+
+
+
+
+
+#------------------------modify file---------------------------
+
+
+
+
+#try to add wall data - work more on this later
+data = {
+    'GlobalId': ifcopenshell.guid.new(),
+    'Name': 'Lukes new wall'
+}
+#model.create_entity('IfcWall', **data)
+
+
+
+
+
+#-------------------material layers sets---------------------
+
+#issue here----------------wall type name not updating
+#create a new wall type
+wall_type = run("root.create_entity", model, ifc_class = "IfcWallType", name="CLT01")
+
+
+#create a material set
+material_set = run("material.add_material_set", model, name = "CRK100-MEM1-CLT90", set_type = "IfcMaterialLayerSet")
+
+#create the materials
+clt = run ("material.add_material",model, name = "CLT90", category = "cross_laminated_timber")
+membrane = run ("material.add_material",model, name = "MEM1", category = "membrane")
+cork = run ("material.add_material",model, name = "CRK100", category = "cork")
+
+#create 3 layers for the new walltype
+#note - python note - here you can see that the layer variable is overidden each new run of api function
+layer = run("material.add_layer", model, layer_set=material_set, material=clt)
+run("material.edit_layer", model, layer=layer, attributes={"LayerThickness": 90})
+layer = run("material.add_layer", model, layer_set=material_set, material=membrane)
+run("material.edit_layer", model, layer=layer, attributes={"LayerThickness": 1})
+layer = run("material.add_layer", model, layer_set=material_set, material=cork)
+run("material.edit_layer", model, layer=layer, attributes={"LayerThickness": 100})
+
+
+#assign material to wall type
+run("material.assign_material", model, product = wall_type, material = material_set)
+
+#create a new wall
+newwall2 = run("root.create_entity", model, ifc_class = "IfcWall", name = "cltwall1")
+
+#create object placement for new wall
+run("geometry.edit_object_placement",model, product = newwall2)
+
+
+
+#assign the type to the wall
+#run("type.assign_type", model, related_object = newwall2, relating_type = walltype)
+ifcopenshell.api.run("type.assign_type", model, related_object=newwall2, relating_type=wall_type)
+
+#now you have explicity create the geometry in the representation to match the layer thickness above
+#ie is manual to make sure correct, unless we create a utility to help out here
+#NOTE - THICKNESS MUST EQUAL LAYERS THICKNESS ABOVES - YOU NEED TO DO THIS MANUALLY
+newwall_rep = run("geometry.add_wall_representation",model, context = body, length = 4, height = 2.4, thickness = 0.191)
+
+#assign representation to new wall
+run("geometry.assign_representation", model, product = newwall2, representation = newwall_rep)
+
+#assign to container
+run("spatial.assign_container", model, relating_structure = storey, product = newwall2)
+
+#move the wall
+move(newwall2, -1, 0,0,90) 
+
+
+#---------------this writes the file above to ifc file
+#re write file
+model.write('c:\dev\lukemod.ifc')
