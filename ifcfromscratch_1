@@ -70,6 +70,8 @@ def load_project(path_ifc=""):
         settings = import_ifc.IfcImportSettings.factory(bpy.context, path_ifc, logging.getLogger("ImportIFC"))
         settings.should_setup_viewport_camera = False
         ifc_importer = import_ifc.IfcImporter(settings)
+        #has an issue here when previously create a ifc group now the next line doesn't work
+        #so if fixed this issue by turning the loadproject def off for a pass then loading ifc and turning back on.
         ifc_importer.execute()
         tool.Project.load_pset_templates()
         tool.Project.load_default_thumbnails()
@@ -137,13 +139,17 @@ site = run("root.create_entity", model, ifc_class="IfcSite", name="My Site")
 building = run("root.create_entity", model, ifc_class="IfcBuilding", name="Building A")
 storey = run("root.create_entity", model, ifc_class="IfcBuildingStorey", name="Ground Floor")
 
+#create an ifc group
+wallgroup = run("root.create_entity",model, ifc_class = "IfcGroup", name = "myfirstgroup")
+
 # Since the site is our top level location, assign it to the project
 # Then place our building on the site, and our storey in the building
 run("aggregate.assign_object", model, relating_object=project, product=site)
 run("aggregate.assign_object", model, relating_object=site, product=building)
 run("aggregate.assign_object", model, relating_object=building, product=storey)
 
-
+#this doesn't add to the storey - why?
+run("aggregate.assign_object", model, relating_object=storey, product=wallgroup)
 
 
 
@@ -154,10 +160,27 @@ run("aggregate.assign_object", model, relating_object=building, product=storey)
 
 
 
+
+
+#test create pset for common wall
+
+
+
+
+
+
+
+
 #try to add wall data - work more on this later
 data = {
     'GlobalId': ifcopenshell.guid.new(),
-    'Name': 'Lukes new wall'
+    'Name': 'new wall zzz',
+    'Description': 'my new wall',
+    'ObjectType': 'exterior wall',
+    'Tag' : 'WT1'
+    
+    
+    
 }
 #model.create_entity('IfcWall', **data)
 
@@ -166,9 +189,10 @@ data = {
 
 #-------------------create wall with numpy matrix-------------------
 
-# Let's create a new wall
-wall2 = run("root.create_entity", model, ifc_class="IfcWall")
+# Let's create a new wall - can use below or the data block way
+#wall2 = run("root.create_entity", model, ifc_class="IfcWall")
 
+wall2 = model.create_entity('IfcWall',**data)
 
 #create location and rotation of new wall----------------
 
@@ -181,21 +205,30 @@ matrix = ifcopenshell.util.placement.rotation(90, "Z") @ matrix
 
 # Set the X, Y, Z coordinates. Notice how we rotate first then translate.
 # This is because the rotation origin is always at 0, 0, 0.
-matrix[:,3][0:3] = (2, 3, 5)
+matrix[:,3][0:3] = (2, 2, 0)
 
 
 # use matrix
 run("geometry.edit_object_placement", model, product=wall2, matrix = matrix)
 
 # Add a new wall-like body geometry, 5 meters long, 3 meters high, and 200mm thick
-representation = run("geometry.add_wall_representation", model, context=body, length=10, height=3, thickness=0.1)
+representation = run("geometry.add_wall_representation", model, context=body, length=10, height=2.4, thickness=0.1)
 # Assign our new body geometry back to our wall
 run("geometry.assign_representation", model, product=wall2, representation=representation)
 
 # Place our wall in the ground floor
 run("spatial.assign_container", model, relating_structure=storey, product=wall2)
 
-wall2.Name = 'Lukes new wall 2'
+#wall2.Name = 'wall with pset'
+
+#try add pset to wall - using buildingsmart standard property set for walls - see blender bode :
+#https://github.com/IfcOpenShell/IfcOpenShell/blob/ed47b6b227a580cdd3f3fc181054bd5f75cb9021/src/ifcopenshell-python/ifcopenshell/api/pset/edit_pset.py
+pset = run("pset.add_pset", model, product = wall2, name = "Pset_wallcommon")
+
+run("pset.edit_pset", model,pset=pset, properties={"FireRating": "2HR", "ThermalTransmittance": 42.3})
+
+
+
 
 
 
@@ -467,7 +500,7 @@ sweptbar1.Name = "my_new_railing"
 
 
 
-#---------------manually create your own class-----------------
+#---------------manually create your own type-----------------
 
 
 #dont forget to create root element
@@ -594,6 +627,14 @@ run("spatial.assign_container", model, relating_structure = storey, product = ne
 
 #move the wall
 move(newwall2, -12, 0,0,90) 
+
+
+#next goal is to create cartesian points and lines.
+
+#need to figure out how to access the definitions under the geomoetry module, as not exposed to api yet
+#run("geometry.create_cartesian_point",model, [0,0,0], [0,0,0])
+
+
 
 
 #---------------this writes the file above to ifc file
