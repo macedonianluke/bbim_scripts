@@ -81,6 +81,7 @@ load_project(path_ifc = 'c:\dev\lukemod.ifc')
 
 model = ifcopenshell.file()
 
+#NOT SURE IF THE STORE HERE IS WORKING AS ITS SUPPOSED.
 IfcStore.file = model
 
 # All projects must have one IFC Project element
@@ -170,8 +171,6 @@ run("geometry.assign_representation", model, product = newwall2, representation 
 #assign to container
 run("spatial.assign_container", model, relating_structure = storey, product = newwall2)
 
-#move the wall
-move(newwall2, -1, 0,0,90) 
 
 
 #---------------this writes the file above to ifc file
