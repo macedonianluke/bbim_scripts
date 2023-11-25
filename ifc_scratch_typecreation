@@ -30,7 +30,7 @@ def delete_collection(blender_collection):
         bpy.data.collections.remove(blender_collection)
         
         
-# bruno's definition from IfcGit Tool in blenderbim-blenderbim-tools-
+# @brunopostle's definition from IfcGit Tool in blenderbim-blenderbim-tools-
 def load_project(path_ifc=""):
         """Clear and load an ifc project"""
 
